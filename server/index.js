@@ -7,17 +7,24 @@ import { parseEncryptionKey } from "./encryption.js";
 
 const appDirectory = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(appDirectory, "..");
+const production = process.env.NODE_ENV === "production";
 const key = parseEncryptionKey(process.env.TRANSACTION_ENCRYPTION_KEY);
 const sessionKey = parseEncryptionKey(process.env.TRANSACTION_SESSION_SECRET);
+const appUsername = process.env.TRANSACTION_APP_USERNAME;
 const appPassword = process.env.TRANSACTION_APP_PASSWORD;
-if (typeof appPassword !== "string" || appPassword.length < 12) {
-  throw new Error("TRANSACTION_APP_PASSWORD must be set and contain at least 12 characters");
+if (typeof appUsername !== "string" || appUsername.length === 0 || appUsername.length > 64) {
+  throw new Error("TRANSACTION_APP_USERNAME must be set and contain 1 to 64 characters");
+}
+const minimumPasswordLength = production ? 12 : 8;
+if (typeof appPassword !== "string" || appPassword.length < minimumPasswordLength) {
+  throw new Error(
+    `TRANSACTION_APP_PASSWORD must be set and contain at least ${minimumPasswordLength} characters`
+  );
 }
 const allowedOrigins = (process.env.APP_ORIGINS ?? "http://localhost:5173,http://127.0.0.1:5173")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-const production = process.env.NODE_ENV === "production";
 if (production && (!process.env.APP_ORIGINS || allowedOrigins.length === 0)) {
   throw new Error("APP_ORIGINS must list the exact HTTPS frontend origin in production");
 }
@@ -42,6 +49,7 @@ const db = createDatabase(databasePath);
 const server = createApp({
   db,
   key,
+  appUsername,
   appPassword,
   sessionKey,
   allowedOrigins,

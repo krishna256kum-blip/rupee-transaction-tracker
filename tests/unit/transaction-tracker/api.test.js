@@ -8,8 +8,12 @@ test("parse API stores encrypted data and returns a masked account suffix", asyn
   const db = createDatabase();
   const key = randomBytes(32);
   const sessionKey = randomBytes(32);
+  const appUsername = "krishna256kum-blip";
   const appPassword = "correct-horse-battery";
-  const server = createApp({ db, key, sessionKey, appPassword }).listen(0, "127.0.0.1");
+  const server = createApp({ db, key, sessionKey, appUsername, appPassword }).listen(
+    0,
+    "127.0.0.1"
+  );
   await new Promise((resolve) => server.once("listening", resolve));
   context.after(() => {
     server.close();
@@ -17,13 +21,23 @@ test("parse API stores encrypted data and returns a masked account suffix", asyn
   });
 
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const wrongUsernameResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: "http://localhost:5173",
+    },
+    body: JSON.stringify({ username: "wrong-user", password: appPassword }),
+  });
+  assert.equal(wrongUsernameResponse.status, 401);
+
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Origin: "http://localhost:5173",
     },
-    body: JSON.stringify({ password: appPassword }),
+    body: JSON.stringify({ username: appUsername, password: appPassword }),
   });
   assert.equal(loginResponse.status, 200);
   const sessionCookie = loginResponse.headers.get("set-cookie").split(";")[0];
@@ -100,11 +114,15 @@ test("parse API stores encrypted data and returns a masked account suffix", asyn
 test("parse API validates missing and unrecognized messages", async (context) => {
   const db = createDatabase();
   const sessionKey = randomBytes(32);
+  const appUsername = "krishna256kum-blip";
   const appPassword = "correct-horse-battery";
-  const server = createApp({ db, key: randomBytes(32), sessionKey, appPassword }).listen(
-    0,
-    "127.0.0.1"
-  );
+  const server = createApp({
+    db,
+    key: randomBytes(32),
+    sessionKey,
+    appUsername,
+    appPassword,
+  }).listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   context.after(() => {
     server.close();
@@ -117,7 +135,7 @@ test("parse API validates missing and unrecognized messages", async (context) =>
       "Content-Type": "application/json",
       Origin: "http://localhost:5173",
     },
-    body: JSON.stringify({ password: appPassword }),
+    body: JSON.stringify({ username: appUsername, password: appPassword }),
   });
   const sessionCookie = loginResponse.headers.get("set-cookie").split(";")[0];
 
@@ -146,10 +164,12 @@ test("parse API validates missing and unrecognized messages", async (context) =>
 
 test("API data is protected, login enforces origins and rate-limits failures", async (context) => {
   const db = createDatabase();
+  const appUsername = "krishna256kum-blip";
   const server = createApp({
     db,
     key: randomBytes(32),
     sessionKey: randomBytes(32),
+    appUsername,
     appPassword: "correct-horse-battery",
   }).listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
@@ -168,7 +188,7 @@ test("API data is protected, login enforces origins and rate-limits failures", a
       "Content-Type": "application/json",
       Origin: "https://untrusted.example",
     },
-    body: JSON.stringify({ password: "correct-horse-battery" }),
+    body: JSON.stringify({ username: appUsername, password: "correct-horse-battery" }),
   });
   assert.equal(crossOriginResponse.status, 403);
 
@@ -179,7 +199,7 @@ test("API data is protected, login enforces origins and rate-limits failures", a
         "Content-Type": "application/json",
         Origin: "http://localhost:5173",
       },
-      body: JSON.stringify({ password: "wrong-password" }),
+      body: JSON.stringify({ username: appUsername, password: "wrong-password" }),
     });
     assert.equal(response.status, 401);
   }
@@ -189,7 +209,7 @@ test("API data is protected, login enforces origins and rate-limits failures", a
       "Content-Type": "application/json",
       Origin: "http://localhost:5173",
     },
-    body: JSON.stringify({ password: "correct-horse-battery" }),
+    body: JSON.stringify({ username: appUsername, password: "correct-horse-battery" }),
   });
   assert.equal(rateLimitedResponse.status, 429);
   assert.ok(rateLimitedResponse.headers.has("retry-after"));

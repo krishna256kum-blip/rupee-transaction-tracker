@@ -61,13 +61,20 @@ function monthlySummary(monthTransactions, recentTransactions, month) {
 export function createApp({
   db,
   key,
+  appUsername,
   appPassword,
   sessionKey,
   allowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"],
   production = false,
 }) {
-  if (typeof appPassword !== "string" || appPassword.length < 12) {
-    throw new Error("TRANSACTION_APP_PASSWORD must be at least 12 characters");
+  if (typeof appUsername !== "string" || appUsername.length === 0 || appUsername.length > 64) {
+    throw new Error("TRANSACTION_APP_USERNAME must contain 1 to 64 characters");
+  }
+  const minimumPasswordLength = production ? 12 : 8;
+  if (typeof appPassword !== "string" || appPassword.length < minimumPasswordLength) {
+    throw new Error(
+      `TRANSACTION_APP_PASSWORD must be at least ${minimumPasswordLength} characters`
+    );
   }
   if (!Buffer.isBuffer(sessionKey) || sessionKey.length !== 32) {
     throw new Error("TRANSACTION_SESSION_SECRET must encode exactly 32 bytes");
@@ -111,13 +118,14 @@ export function createApp({
       return response.status(429).json({ error: "Too many login attempts; try again later" });
     }
 
-    const { password } = request.body ?? {};
-    if (!verifyPassword(password, appPassword)) {
+    const { username, password } = request.body ?? {};
+    const validPassword = verifyPassword(password, appPassword);
+    if (username !== appUsername || !validPassword) {
       const nextAttempts =
         attempts && attempts.resetAt > now ? attempts : { count: 0, resetAt: now + windowMs };
       nextAttempts.count += 1;
       loginAttempts.set(address, nextAttempts);
-      return response.status(401).json({ error: "Incorrect password" });
+      return response.status(401).json({ error: "Incorrect username or password" });
     }
 
     loginAttempts.delete(address);

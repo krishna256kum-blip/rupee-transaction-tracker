@@ -27,6 +27,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [authSubmitting, setAuthSubmitting] = useState(false);
@@ -93,7 +94,7 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Could not sign in.");
@@ -223,6 +224,14 @@ export default function App() {
             </div>
           )}
           <form className="login-form" onSubmit={submitLogin}>
+            <label htmlFor="app-username">Username</label>
+            <input
+              autoComplete="username"
+              id="app-username"
+              onChange={(event) => setUsername(event.target.value)}
+              required
+              value={username}
+            />
             <label htmlFor="app-password">Password</label>
             <input
               autoComplete="current-password"
@@ -237,7 +246,7 @@ export default function App() {
             </button>
           </form>
           <p className="privacy-note">
-            Your password is checked by the API and is never stored in the database.
+            Your credentials are checked by the API and never stored in the database.
           </p>
         </section>
       </main>

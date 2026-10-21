@@ -42,3 +42,32 @@ test("uses HTTP-only strict same-site cookies and supports clearing a session", 
   );
   assert.equal(getSessionToken({ headers: {} }), null);
 });
+
+test("allows the requested short password only outside production", async () => {
+  const { createApp } = await import("../../../server/app.js");
+  const { createDatabase } = await import("../../../server/db.js");
+  const db = createDatabase();
+
+  assert.doesNotThrow(() =>
+    createApp({
+      db,
+      key: randomBytes(32),
+      sessionKey: randomBytes(32),
+      appUsername: "krishna256kum-blip",
+      appPassword: "kidokido",
+    })
+  );
+  assert.throws(
+    () =>
+      createApp({
+        db,
+        key: randomBytes(32),
+        sessionKey: randomBytes(32),
+        appUsername: "krishna256kum-blip",
+        appPassword: "kidokido",
+        production: true,
+      }),
+    /at least 12 characters/
+  );
+  db.close();
+});
